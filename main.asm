@@ -26,11 +26,14 @@ include \masm32\macros\macros.asm
 
     consoleCount dd 0
 
+    fileInfoBuffer dd 18 dup(0)
+    fileInfoString db 0
+    readCount dd 0
+    fileHandle dd 0
+
     output dd 0
 
 .code
-
-
     start:
         ; -- get input/output handle
         push STD_INPUT_HANDLE
@@ -69,12 +72,13 @@ include \masm32\macros\macros.asm
             inc esi ; Apontar para o proximo caractere
             cmp al, 13 ; Verificar se eh o caractere ASCII CR - FINALIZAR
             jne next
-            
+
         dec esi ; Apontar para caractere anterior
         xor al, al ; ASCII 0
         mov BYTE PTR [esi], al ; Inserir ASCII 0 no lugar do ASCII CR
 
-        push 0
+        ; -- open access image file --
+        push NULL
         push FILE_ATTRIBUTE_NORMAL
         push OPEN_EXISTING
         push NULL
@@ -83,27 +87,17 @@ include \masm32\macros\macros.asm
         push offset fileName
         call CreateFile
 
-        invoke GetFileSize, eax, 0 
-        ; cmp eax, 0
-        ; jl dimensionerSizeOfArq
-        ; jmp finish
+        mov fileHandle, eax
 
-        dimensionerSizeOfArq:
-            push output
-            push eax
-            call dwtoa
-            
-            ;invoke WriteConsole, outputHandle, addr eax, sizeof eax, addr write_count, NULL
-            push NULL
-            push offset consoleCount
-            push sizeof output
-            push offset output
-            push outputHandle
-            call WriteConsole
-            invoke CloseHandle, eax
-            
-            ;push eax
-            ;call CloseHandle
+        ; -- read image file --
+        push NULL
+        push offset readCount
+        push 18
+        push offset fileInfoBuffer
+        push fileHandle
+        call ReadFile
+
+        printf("%d\n", fileInfoBuffer[0])
 
         finish:
             invoke ExitProcess, 0
