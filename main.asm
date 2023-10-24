@@ -97,7 +97,7 @@ include \masm32\macros\macros.asm
         push fileHandle
         call ReadFile
 
-        printf("%d\n", fileInfoBuffer[0])
+        printf("%p\n", fileInfoBuffer)
 
         finish:
             invoke ExitProcess, 0
