@@ -19,6 +19,7 @@ include \masm32\macros\macros.asm
     inputFileName db "Input file name (.bmp): ", 0H
 
     fileName db 50 dup(0) ; 100 bytes = 800 bits
+    outputFileName db "copiaFotoanonima.bmp"
     fileNameLength dd 0
 
     outputHandle dd 0
@@ -26,12 +27,16 @@ include \masm32\macros\macros.asm
 
     consoleCount dd 0
 
-    fileInfoBuffer dd 18 dup(0)
+    fileInfoBuffer dw 18 dup(0)
+    fileWidth dd 0
+    fileHeight dd 0
     fileInfoString db 0
     readCount dd 0
     fileHandle dd 0
 
     output dd 0
+
+    outputTeste db 0
 
 .code
     start:
@@ -87,6 +92,16 @@ include \masm32\macros\macros.asm
         push offset fileName
         call CreateFile
 
+        ;code to create the output file
+        ;push NULL
+        ;push FILE_ATTRIBUTE_NORMAL
+        ;push CREATE_ALWAYS
+        ;push NULL
+        ;push 0
+        ;push GENERIC_WRITE
+        ;push offset outputFileName
+        ;call CreateFile
+
         mov fileHandle, eax
 
         ; -- read image file --
@@ -97,7 +112,34 @@ include \masm32\macros\macros.asm
         push fileHandle
         call ReadFile
 
-        printf("%p\n", fileInfoBuffer)
+        ;read the width
+        push NULL
+        push offset readCount
+        push 4
+        push offset fileWidth
+        push fileHandle
+        call ReadFile
+
+        ;read the height
+        push NULL
+        push offset readCount
+        push 4
+        push offset fileHeight
+        push fileHandle
+        call ReadFile
+
+        ;verify code to show values searched {
+        push offset outputTeste
+        push fileHeight
+        call dwtoa
+
+        push NULL
+        push offset consoleCount
+        push 10
+        push offset outputTeste
+        push outputHandle
+        call WriteConsole
+        ;}
 
         finish:
             invoke ExitProcess, 0
