@@ -30,13 +30,14 @@ include \masm32\macros\macros.asm
     fileInfoBuffer dw 18 dup(0)
     fileWidth dd 0
     fileHeight dd 0
+    fileInfoToNextBuffer dw 28 dup(0)
     fileInfoString db 0
     readCount dd 0
     fileHandle dd 0
 
     output dd 0
 
-    outputTeste db 0
+    outputTeste db 32 dup(0)
 
 .code
     start:
@@ -128,15 +129,22 @@ include \masm32\macros\macros.asm
         push fileHandle
         call ReadFile
 
+        push NULL
+        push offset readCount
+        push 28
+        push offset fileInfoToNextBuffer
+        push fileHandle
+        call ReadFile
+
         ;verify code to show values searched {
-        push offset outputTeste
-        push fileHeight
-        call dwtoa
+        ;push offset outputTeste
+        ;push fileInfoToNextBuffer
+        ;call dwtoa
 
         push NULL
         push offset consoleCount
-        push 10
-        push offset outputTeste
+        push 28
+        push offset fileInfoToNextBuffer
         push outputHandle
         call WriteConsole
         ;}
