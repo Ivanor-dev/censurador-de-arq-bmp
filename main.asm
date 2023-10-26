@@ -19,21 +19,22 @@ include \masm32\macros\macros.asm
     inputFileName db "Input file name (.bmp): ", 0H
 
     fileName db 50 dup(0) ; 100 bytes = 800 bits
-    outputFileName db "copiaFotoanonima.bmp"
     fileNameLength dd 0
+    outputFileName db "copiaFotoanonima.bmp"
 
     outputHandle dd 0
     inputHandle dd 0
-
-    consoleCount dd 0
+    fileHandle dd 0
 
     fileInfoBuffer dw 18 dup(0)
-    fileWidth dd 0
-    fileHeight dd 0
     fileInfoToNextBuffer dw 28 dup(0)
     fileInfoString db 0
+
+    fileWidth dd 0
+    fileHeight dd 0
+
     readCount dd 0
-    fileHandle dd 0
+    consoleCount dd 0
 
     output dd 0
 
@@ -113,7 +114,7 @@ include \masm32\macros\macros.asm
         push fileHandle
         call ReadFile
 
-        ;read the width
+        ; read the width
         push NULL
         push offset readCount
         push 4
@@ -121,7 +122,7 @@ include \masm32\macros\macros.asm
         push fileHandle
         call ReadFile
 
-        ;read the height
+        ; read the height
         push NULL
         push offset readCount
         push 4
