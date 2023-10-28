@@ -16,24 +16,27 @@ include \masm32\macros\macros.asm
 
 
 .data
-    inputFileName db "Input file name (.bmp): ", 0H
-
+    fileNameMessage db "Input file name (.bmp): ", 0H
     fileName db 50 dup(0) ; 100 bytes = 800 bits
     fileNameLength dd 0
-    outputFileName db "copiaFotoanonima.bmp"
+
+    outputFileNameMessage db "Output file name (.bmp): ", 0H
+    outputFileName db 50 dup(0) ; 100 bytes = 800 bits
+    outputFileNameLength dd 0
 
     outputHandle dd 0
     inputHandle dd 0
-    fileHandle dd 0
 
-    fileInfoBuffer dw 18 dup(0)
-    fileInfoToNextBuffer dw 28 dup(0)
-    fileInfoString db 0
+    readFileHandle dd 0
+    writeFileHandle dd 0
 
-    fileWidth dd 0
     fileHeight dd 0
 
+    fileHeaderBuffer db 32 dup(0)
+    fileImageBuffer db 6480 dup(0)
+
     readCount dd 0
+    writeCount dd 0
     consoleCount dd 0
 
     output dd 0
@@ -42,6 +45,8 @@ include \masm32\macros\macros.asm
 
 .code
     start:
+        ; ===== USER INPUT =====
+
         ; -- get input/output handle
         push STD_INPUT_HANDLE
         call GetStdHandle
@@ -51,15 +56,17 @@ include \masm32\macros\macros.asm
         call GetStdHandle
         mov outputHandle, eax
 
-        ; write input message (file name)
+        ; ---- input file ----
+
+        ; write input message name
         push NULL
         push offset consoleCount
-        push sizeof inputFileName
-        push offset inputFileName
+        push sizeof fileNameMessage
+        push offset fileNameMessage
         push outputHandle
         call WriteConsole
 
-        ; read file name
+        ; read input file name
         push NULL
         push offset consoleCount
         push sizeof fileName
@@ -67,11 +74,8 @@ include \masm32\macros\macros.asm
         push inputHandle
         call ReadConsole
 
-        ; get file name string length
-        push offset fileName
-        call StrLen
-        mov fileNameLength, eax
 
+        ; remove ASCII CR from input file name
         mov esi, offset fileName ; Armazenar apontador da string em esi
 
         next:
@@ -84,7 +88,54 @@ include \masm32\macros\macros.asm
         xor al, al ; ASCII 0
         mov BYTE PTR [esi], al ; Inserir ASCII 0 no lugar do ASCII CR
 
-        ; -- open access image file --
+
+        ; get file name string length
+        push offset fileName
+        call StrLen
+        mov fileNameLength, eax
+
+        ; ---- output file ----
+
+        ; write output file name message
+        push NULL
+        push offset consoleCount
+        push sizeof outputFileNameMessage
+        push offset outputFileNameMessage
+        push outputHandle
+        call WriteConsole
+
+        ; read output file name
+        push NULL
+        push offset consoleCount
+        push sizeof outputFileName
+        push offset outputFileName
+        push inputHandle
+        call ReadConsole
+
+        ; remove ASCII CR from input file name
+        mov esi, offset outputFileName ; Armazenar apontador da string em esi
+
+        next_2:
+            mov al, BYTE PTR [esi] ; Mover caractere atual para al
+            inc esi ; Apontar para o proximo caractere
+            cmp al, 13 ; Verificar se eh o caractere ASCII CR - FINALIZAR
+            jne next_2
+
+        dec esi ; Apontar para caractere anterior
+        xor al, al ; ASCII 0
+        mov BYTE PTR [esi], al ; Inserir ASCII 0 no lugar do ASCII CR
+
+
+        ; get file name string length
+        push offset outputFileName
+        call StrLen
+        mov outputFileNameLength, eax
+
+
+
+        ; ===== FILES SETUP =====
+
+        ; --- open input file ---
         push NULL
         push FILE_ATTRIBUTE_NORMAL
         push OPEN_EXISTING
@@ -94,63 +145,163 @@ include \masm32\macros\macros.asm
         push offset fileName
         call CreateFile
 
-        ;code to create the output file
-        ;push NULL
-        ;push FILE_ATTRIBUTE_NORMAL
-        ;push CREATE_ALWAYS
-        ;push NULL
-        ;push 0
-        ;push GENERIC_WRITE
-        ;push offset outputFileName
-        ;call CreateFile
+        mov readFileHandle, eax
 
-        mov fileHandle, eax
+        ; -- create output file ---
+        push NULL
+        push FILE_ATTRIBUTE_NORMAL
+        push CREATE_ALWAYS
+        push NULL
+        push 0
+        push GENERIC_WRITE
+        push offset outputFileName
+        call CreateFile
 
-        ; -- read image file --
+        mov writeFileHandle, eax
+
+
+
+        ; ===== COPY HEADER (14 bytes) =====
+
+        ; --- read header (14 bytes) from input file ---
         push NULL
         push offset readCount
-        push 18
-        push offset fileInfoBuffer
-        push fileHandle
+        push 14
+        push offset fileHeaderBuffer
+        push readFileHandle
         call ReadFile
 
-        ; read the width
+        ; --- write header (14 bytes) to the output file ---
+        push NULL
+        push offset writeCount
+        push 14
+        push offset fileHeaderBuffer
+        push writeFileHandle
+        call WriteFile
+        
+        ; ===== COPY HEIGHT (4 bytes) =====
+
+        ; --- read height (4 bytes) from input file ---
         push NULL
         push offset readCount
         push 4
-        push offset fileWidth
-        push fileHandle
+        push offset fileHeaderBuffer
+        push readFileHandle
         call ReadFile
 
-        ; read the height
+        ; --- write height (4 bytes) to the output file ---
+        push NULL
+        push offset writeCount
+        push 4
+        push offset fileHeaderBuffer
+        push writeFileHandle
+        call WriteFile
+
+        ; XXXXXXXXXXXX CONVERTION BYTE TO DWORD NOT WORKING XXXXXXXXXXXXXXXXXXXXXXX
+
+        mov esi, offset fileHeaderBuffer ; address of the first char
+        
+        next_convertion:
+            mov al, BYTE PTR [esi] ; passing the value of the current char (ASCII)
+
+            inc esi ; load the address of the next char
+
+            ; check if the ASCII is not numerical (ASCII < 48)
+            cmp al, 48
+            jl finish_convertion
+
+            ; check if the ASCII is numerical (ASCII < 58)
+            cmp al, 58
+            jl next
+
+        finish_convertion:
+            dec esi ; address of the not numerical ASCII
+
+            ; set the ASCII to 0 (NULL, end of string)
+            xor al, al 
+            mov BYTE PTR [esi], al
+
+        ; convert string to integer
+        push offset fileHeaderBuffer
+        call atodw
+        
+        mov fileHeight, eax
+
+        printf("%d\n",fileHeight)
+
+        ; XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+        ; ===== COPY WIDTH (4 bytes) =====
+
+        ; --- read width (4 bytes) from input file ---
         push NULL
         push offset readCount
         push 4
-        push offset fileHeight
-        push fileHandle
+        push offset fileHeaderBuffer
+        push readFileHandle
         call ReadFile
 
+        ; --- write width (4 bytes) to the output file ---
+        push NULL
+        push offset writeCount
+        push 4
+        push offset fileHeaderBuffer
+        push writeFileHandle
+        call WriteFile
+
+
+        ; ===== COPY REMAINING HEADER DATA (32 bytes) =====
+
+        ; --- read 32 bytes from input file ---
         push NULL
         push offset readCount
-        push 28
-        push offset fileInfoToNextBuffer
-        push fileHandle
+        push 32
+        push offset fileHeaderBuffer
+        push readFileHandle
         call ReadFile
 
-        ;verify code to show values searched {
-        ;push offset outputTeste
-        ;push fileInfoToNextBuffer
-        ;call dwtoa
-
+        ; --- write 32 bytes to the output file ---
         push NULL
-        push offset consoleCount
-        push 28
-        push offset fileInfoToNextBuffer
-        push outputHandle
-        call WriteConsole
-        ;}
+        push offset writeCount
+        push 32
+        push offset fileHeaderBuffer
+        push writeFileHandle
+        call WriteFile
+
+        ; ===== COPY IMAGE ====
+
+        ; XXXXXXXXXXXXXXXXXXXXXX NOT WORKING XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        xor edx, edx
+
+        image_loop:
+            push edx
+
+            push NULL
+            push offset readCount
+            push 6480
+            push offset fileImageBuffer
+            push readFileHandle
+            call ReadFile
+
+            push NULL
+            push offset writeCount
+            push 6480
+            push offset fileImageBuffer
+            push writeFileHandle
+            call WriteFile
+
+            pop edx
+
+            printf("%d\n",edx)
+
+            inc edx
+            cmp edx, fileHeight
+            jl image_loop
+
+            ; XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
         finish:
-            invoke ExitProcess, 0
+            push 0
+            call ExitProcess
 
     end start
