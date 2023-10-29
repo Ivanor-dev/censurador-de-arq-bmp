@@ -41,28 +41,29 @@ include \masm32\macros\macros.asm
 
 
 .code
+    remove_CR_LF:
+        push ebp
+        mov ebp, esp
+        ; sub esp, 8
+
+        ; remove ASCII CR from input file name
+        mov esi, [ebp+8] ; Armazenar apontador da string em esi
+
+        next:
+            mov al, BYTE PTR [esi] ; Mover caractere atual para al
+            inc esi ; Apontar para o proximo caractere
+            cmp al, 13 ; Verificar se eh o caractere ASCII CR - FINALIZAR
+            jne next
+
+        dec esi ; Apontar para caractere anterior
+        xor al, al ; ASCII 0
+        mov BYTE PTR [esi], al ; Inserir ASCII 0 no lugar do ASCII CR
+
+        mov esp, ebp
+        pop ebp
+        ret 4
+
     start:
-        remove_CR_LF:
-            push ebp
-            mov ebp, esp
-            ; sub esp, 8
-
-            ; remove ASCII CR from input file name
-            mov esi, BYTE PTR [ebp+8] ; Armazenar apontador da string em esi
-
-            next:
-                mov al, BYTE PTR [esi] ; Mover caractere atual para al
-                inc esi ; Apontar para o proximo caractere
-                cmp al, 13 ; Verificar se eh o caractere ASCII CR - FINALIZAR
-                jne next
-
-            dec esi ; Apontar para caractere anterior
-            xor al, al ; ASCII 0
-            mov BYTE PTR [esi], al ; Inserir ASCII 0 no lugar do ASCII CR
-
-            mov esp, ebp
-            pop ebp
-            ret 4
 
         ; ===== USER INPUT =====
 
@@ -134,25 +135,8 @@ include \masm32\macros\macros.asm
         call ReadConsole
 
         ; remove ASCII CR from input file name
-        mov esi, offset outputFileName ; Armazenar apontador da string em esi
-
-        next_2:
-            mov al, BYTE PTR [esi] ; Mover caractere atual para al
-            inc esi ; Apontar para o proximo caractere
-            cmp al, 13 ; Verificar se eh o caractere ASCII CR - FINALIZAR
-            jne next_2
-
-        dec esi ; Apontar para caractere anterior
-        xor al, al ; ASCII 0
-        mov BYTE PTR [esi], al ; Inserir ASCII 0 no lugar do ASCII CR
-
-
-        ; get file name string length
-        push offset outputFileName
-        call StrLen
-        mov outputFileNameLength, eax
-
-
+        push offset outputFileName ; Armazenar apontador da string em esi
+        call remove_CR_LF
 
         ; ===== FILES SETUP =====
 
