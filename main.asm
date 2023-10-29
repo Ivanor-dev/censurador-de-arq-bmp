@@ -4,6 +4,7 @@
 option casemap: none
 
 include \masm32\include\windows.inc
+include \masm32\include\kernel32.inc
 include \masm32\include\masm32.inc
 include \masm32\include\msvcrt.inc
 
@@ -38,14 +39,31 @@ include \masm32\macros\macros.asm
     writeCount dd 0
     consoleCount dd 0
 
-    output dd 0
-
-    outputTeste db 32 dup(0)
-
-    counterPrint dd 0
 
 .code
     start:
+        remove_CR_LF:
+            push ebp
+            mov ebp, esp
+            ; sub esp, 8
+
+            ; remove ASCII CR from input file name
+            mov esi, BYTE PTR [ebp+8] ; Armazenar apontador da string em esi
+
+            next:
+                mov al, BYTE PTR [esi] ; Mover caractere atual para al
+                inc esi ; Apontar para o proximo caractere
+                cmp al, 13 ; Verificar se eh o caractere ASCII CR - FINALIZAR
+                jne next
+
+            dec esi ; Apontar para caractere anterior
+            xor al, al ; ASCII 0
+            mov BYTE PTR [esi], al ; Inserir ASCII 0 no lugar do ASCII CR
+
+            mov esp, ebp
+            pop ebp
+            ret 4
+
         ; ===== USER INPUT =====
 
         ; -- get input/output handle
@@ -76,18 +94,20 @@ include \masm32\macros\macros.asm
         call ReadConsole
 
 
-        ; remove ASCII CR from input file name
-        mov esi, offset fileName ; Armazenar apontador da string em esi
+        push offset fileName
+        call remove_CR_LF        
 
-        next:
-            mov al, BYTE PTR [esi] ; Mover caractere atual para al
-            inc esi ; Apontar para o proximo caractere
-            cmp al, 13 ; Verificar se eh o caractere ASCII CR - FINALIZAR
-            jne next
+        ; mov esi, offset fileName ; Armazenar apontador da string em esi
 
-        dec esi ; Apontar para caractere anterior
-        xor al, al ; ASCII 0
-        mov BYTE PTR [esi], al ; Inserir ASCII 0 no lugar do ASCII CR
+        ; next:
+        ;     mov al, [esi] ; Mover caracter e atual para al
+        ;     inc esi ; Apontar para o proximo caracter e
+        ;     cmp al, 13 ; Verificar se eh o caractere ASCII CR FINALIZAR
+        ;     jne next
+
+        ; dec esi ; Apontar para caracter e anterior
+        ; xor al, al ; ASCII 0
+        ; mov [esi], al ; Inserir ASCII 0 no lugar do ASCII CR
 
 
         ; get file name string length
