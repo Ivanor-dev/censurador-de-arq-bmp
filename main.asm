@@ -39,6 +39,8 @@ include \masm32\macros\macros.asm
     writeCount dd 0
     consoleCount dd 0
 
+    integerString db "1234", 0
+    integer dd 0
 
 .code
     remove_CR_LF:
@@ -63,9 +65,70 @@ include \masm32\macros\macros.asm
         pop ebp
         ret 4
 
+    dbtodd:
+        push ebp
+        mov ebp, esp
+        sub esp, 8
+        
+    
+
+        mov esi, [ebp + 8] ; passa o primeiro parametro para esi
+        next_position:
+            mov al, [esi] ; passa o caraciter da posição para al
+            inc esi ; incrementa esi para acessar a proxima posição
+            cmp al, 48 ; compara o valor dos caracteres
+            jl finish_convertion ; sendo menor acaba a converção
+            cmp al, 58 ; compara o valor dos caracteres
+            jl next_position ; vai par a proxima posição
+        finish_convertion:
+            dec esi ; decrece o esi
+            xor al, al ; zera al
+            mov [esi], al ; põe o caracter nulo na posição de esi
+        
+        push [ebp + 8]
+        call atodw ; chamada para função de tradução
+        mov esi, [ebp + 12] ; passagem do parametro 2 para esi
+
+        mov DWORD PTR [esi], eax ; atribuição de eax para o parametro 2
+
+        mov esp, ebp
+        pop ebp
+        ret 4
+
     start:
 
         ; ===== USER INPUT =====
+        push offset integer
+        push offset integerString
+        call dbtodd
+
+        printf("%d\n", integer)
+
+        ;mov esi, offset integerString
+        ;next_position1:
+        ;    mov al, [esi]
+        ;    inc esi
+        ;    cmp al, 48
+        ;    jl finish_convertion1
+        ;   cmp al, 58
+        ;    jl next_position1
+        ;finish_convertion1:
+        ;    dec esi
+        ;    xor al, al
+        ;    mov [esi], al
+        
+        ;push offset integerString
+        ;call atodw
+
+        ;mov integer, eax
+
+        ;printf("%d\n", integer)
+
+        
+
+        ;mov integer, eax
+
+        
 
         ; -- get input/output handle
         push STD_INPUT_HANDLE
@@ -210,6 +273,7 @@ include \masm32\macros\macros.asm
         push offset fileHeaderBuffer
         call atodw
         mov fileHeight, eax
+
 
 
 
