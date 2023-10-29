@@ -24,19 +24,19 @@ include \masm32\macros\macros.asm
     outputFileName db 50 dup(0) ; 100 bytes = 800 bits
     outputFileNameLength dd 0
 
-    pointXCensurerMenssage db "point X to censure (natural): ", 0H
+    pointXCensurerMenssage db "Point X to censure (natural): ", 0H
     pointXCensurer db 3 dup(0)
     pointX dd 0
 
-    pointYCensurerMenssage db "point Y to censure (natural): ", 0H
+    pointYCensurerMenssage db "Point Y to censure (natural): ", 0H
     pointYCensurer db 3 dup(0)
     pointY dd 0
 
-    widthCensurerMenssage db "width of black square (natural): ", 0H
+    widthCensurerMenssage db "WIDTH of black square (natural): ", 0H
     widthCensurer db 3 dup(0)
     widthSquare dd 0
 
-    heightCensurerMenssage db "height of black square (natural): ", 0H
+    heightCensurerMenssage db "HEIGHT of black square (natural): ", 0H
     heightCensurer db 3 dup(0)
     heightSquare dd 0
 
@@ -55,16 +55,12 @@ include \masm32\macros\macros.asm
     writeCount dd 0
     consoleCount dd 0
 
-    integerString db "1234", 0
-    integer dd 0
-
 
 
 .code
     remove_CR_LF:
         push ebp
         mov ebp, esp
-        ; sub esp, 8
 
         ; remove ASCII CR from input file name
         mov esi, [ebp+8] ; Armazenar apontador da string em esi
@@ -87,17 +83,19 @@ include \masm32\macros\macros.asm
         push ebp
         mov ebp, esp
         sub esp, 8
-        
-    
 
         mov esi, [ebp + 8] ; passa o primeiro parametro para esi
+
         next_position:
             mov al, [esi] ; passa o caraciter da posição para al
             inc esi ; incrementa esi para acessar a proxima posição
+
             cmp al, 48 ; compara o valor dos caracteres
             jl finish_convertion ; sendo menor acaba a converção
+
             cmp al, 58 ; compara o valor dos caracteres
             jl next_position ; vai par a proxima posição
+
         finish_convertion:
             dec esi ; decrece o esi
             xor al, al ; zera al
@@ -116,12 +114,6 @@ include \masm32\macros\macros.asm
     start:
 
         ; ===== USER INPUT =====
-        push offset integer
-        push offset integerString
-        call dbtodd
-
-        printf("%d\n", integer)
-
 
         ; -- get input/output handle
         push STD_INPUT_HANDLE
