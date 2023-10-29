@@ -24,6 +24,22 @@ include \masm32\macros\macros.asm
     outputFileName db 50 dup(0) ; 100 bytes = 800 bits
     outputFileNameLength dd 0
 
+    pointXCensurerMenssage db "point X to censure (natural): ", 0H
+    pointXCensurer db 3 dup(0)
+    pointX dd 0
+
+    pointYCensurerMenssage db "point Y to censure (natural): ", 0H
+    pointYCensurer db 3 dup(0)
+    pointY dd 0
+
+    widthCensurerMenssage db "width of black square (natural): ", 0H
+    widthCensurer db 3 dup(0)
+    widthSquare dd 0
+
+    heightCensurerMenssage db "height of black square (natural): ", 0H
+    heightCensurer db 3 dup(0)
+    heightSquare dd 0
+
     outputHandle dd 0
     inputHandle dd 0
 
@@ -41,6 +57,8 @@ include \masm32\macros\macros.asm
 
     integerString db "1234", 0
     integer dd 0
+
+
 
 .code
     remove_CR_LF:
@@ -104,31 +122,6 @@ include \masm32\macros\macros.asm
 
         printf("%d\n", integer)
 
-        ;mov esi, offset integerString
-        ;next_position1:
-        ;    mov al, [esi]
-        ;    inc esi
-        ;    cmp al, 48
-        ;    jl finish_convertion1
-        ;   cmp al, 58
-        ;    jl next_position1
-        ;finish_convertion1:
-        ;    dec esi
-        ;    xor al, al
-        ;    mov [esi], al
-        
-        ;push offset integerString
-        ;call atodw
-
-        ;mov integer, eax
-
-        ;printf("%d\n", integer)
-
-        
-
-        ;mov integer, eax
-
-        
 
         ; -- get input/output handle
         push STD_INPUT_HANDLE
@@ -161,19 +154,6 @@ include \masm32\macros\macros.asm
         push offset fileName
         call remove_CR_LF        
 
-        ; mov esi, offset fileName ; Armazenar apontador da string em esi
-
-        ; next:
-        ;     mov al, [esi] ; Mover caracter e atual para al
-        ;     inc esi ; Apontar para o proximo caracter e
-        ;     cmp al, 13 ; Verificar se eh o caractere ASCII CR FINALIZAR
-        ;     jne next
-
-        ; dec esi ; Apontar para caracter e anterior
-        ; xor al, al ; ASCII 0
-        ; mov [esi], al ; Inserir ASCII 0 no lugar do ASCII CR
-
-
         ; get file name string length
         push offset fileName
         call StrLen
@@ -197,9 +177,96 @@ include \masm32\macros\macros.asm
         push inputHandle
         call ReadConsole
 
-        ; remove ASCII CR from input file name
-        push offset outputFileName ; Armazenar apontador da string em esi
+        push offset outputFileName
         call remove_CR_LF
+
+        ; --- position X ---
+
+        ; write position X message
+        push NULL
+        push offset consoleCount
+        push sizeof pointXCensurerMenssage
+        push offset pointXCensurerMenssage
+        push outputHandle
+        call WriteConsole
+
+        ; read position X
+        push NULL
+        push offset consoleCount
+        push sizeof pointXCensurer
+        push offset pointXCensurer
+        push inputHandle
+        call ReadConsole
+
+        push offset pointX
+        push offset pointXCensurer
+        call dbtodd
+
+        ; --- position Y ---
+        
+        ; write position Y message
+        push NULL
+        push offset consoleCount
+        push sizeof pointYCensurerMenssage
+        push offset pointYCensurerMenssage
+        push outputHandle
+        call WriteConsole
+
+        ; read position Y
+        push NULL
+        push offset consoleCount
+        push sizeof pointYCensurer
+        push offset pointYCensurer
+        push inputHandle
+        call ReadConsole
+
+        push offset pointY
+        push offset pointYCensurer
+        call dbtodd
+
+        ; --- width ---
+        
+        ; write width message
+        push NULL
+        push offset consoleCount
+        push sizeof widthCensurerMenssage
+        push offset widthCensurerMenssage
+        push outputHandle
+        call WriteConsole
+
+        ; read width
+        push NULL
+        push offset consoleCount
+        push sizeof widthCensurer
+        push offset widthCensurer
+        push inputHandle
+        call ReadConsole
+
+        push offset widthSquare
+        push offset widthCensurer
+        call dbtodd
+
+        ; --- height ---
+        
+        ; write width message
+        push NULL
+        push offset consoleCount
+        push sizeof heightCensurerMenssage
+        push offset heightCensurerMenssage
+        push outputHandle
+        call WriteConsole
+
+        ; read width
+        push NULL
+        push offset consoleCount
+        push sizeof heightCensurer
+        push offset heightCensurer
+        push inputHandle
+        call ReadConsole
+
+        push offset heightSquare
+        push offset heightCensurer
+        call dbtodd
 
         ; ===== FILES SETUP =====
 
