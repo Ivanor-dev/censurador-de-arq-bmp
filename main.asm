@@ -4,7 +4,6 @@
 option casemap: none
 
 include \masm32\include\windows.inc
-include \masm32\include\kernel32.inc ; nessa lib tem a leitura de arquivos 
 include \masm32\include\masm32.inc
 include \masm32\include\msvcrt.inc
 
@@ -181,6 +180,8 @@ include \masm32\macros\macros.asm
         push writeFileHandle
         call WriteFile
         
+
+
         ; ===== COPY HEIGHT (4 bytes) =====
 
         ; --- read height (4 bytes) from input file ---
@@ -199,44 +200,14 @@ include \masm32\macros\macros.asm
         push writeFileHandle
         call WriteFile
 
-        ; XXXXXXXXXXXX CONVERTION BYTE TO DWORD NOT WORKING XXXXXXXXXXXXXXXXXXXXXXX
-
-        mov esi, offset fileHeaderBuffer ; address of the first char
+        ; --- save the file height in memory ---
         
-        ;next_convertion:
-            movzx eax, BYTE PTR [fileHeaderBuffer] ; passing the value of the current char (ASCII)
-            mov fileHeight, eax
+        ; convert ASCII to number
+        push offset fileHeaderBuffer
+        call atodw
+        mov fileHeight, eax
 
-            ;inc esi ; load the address of the next char
 
-            ; check if the ASCII is not numerical (ASCII < 48)
-            ;cmp al, 48
-            ;jl finish_convertion
-
-            ; check if the ASCII is numerical (ASCII < 58)
-            ;cmp al, 58
-            ;jl next
-
-        ;finish_convertion:
-            ;dec esi ; address of the not numerical ASCII
-
-            ; set the ASCII to 0 (NULL, end of string)
-            ;xor al, al 
-            ;mov BYTE PTR [esi], al
-    
-        ;push eax
-
-        ; convert string to integer
-        ;push offset fileHeaderBuffer
-        ;call atodw
-        
-        ;pop eax
-
-        ;mov fileHeight, eax
-
-        printf("%d\n",fileHeight)
-
-        ; XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
         ; ===== COPY WIDTH (4 bytes) =====
 
@@ -275,37 +246,44 @@ include \masm32\macros\macros.asm
         push writeFileHandle
         call WriteFile
 
-        ; ===== COPY IMAGE ====
 
-        ; XXXXXXXXXXXXXXXXXXXXXX NOT WORKING XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+        ; ===== COPY IMAGE =====
+
+        ; LOGIC: 
+        ;   lineIndex = 0
+        ;   do
+        ;       read line from input file
+        ;       write line to the output file
+        ;       lineIndex++
+        ;   while (lineIndex < fileHeight)
+
         xor edi, edi
 
         image_loop:
             push edi
 
+            ; --- read "image line" from input file ---
             push NULL
             push offset readCount
-            push 6480
+            push 6480 ; image width = 2160 pixels * 3 bytes
             push offset fileImageBuffer
             push readFileHandle
             call ReadFile
 
+            ; --- write "image line" to the output file ---
             push NULL
             push offset writeCount
-            push 6480
+            push 6480 ; image width = 2160 pixels * 3 bytes
             push offset fileImageBuffer
             push writeFileHandle
             call WriteFile
 
             pop edi
 
-            printf("%d\n",edi)
-
             inc edi
-            cmp edi, fileHeight
+            cmp edi, fileHeight ; verify if image was fully copied
             jl image_loop
-
-            ; XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
         finish:
             push 0
