@@ -43,6 +43,8 @@ include \masm32\macros\macros.asm
 
     outputTeste db 32 dup(0)
 
+    counterPrint dd 0
+
 .code
     start:
         ; ===== USER INPUT =====
@@ -166,7 +168,7 @@ include \masm32\macros\macros.asm
         ; --- read header (14 bytes) from input file ---
         push NULL
         push offset readCount
-        push 14
+        push 22
         push offset fileHeaderBuffer
         push readFileHandle
         call ReadFile
@@ -174,7 +176,7 @@ include \masm32\macros\macros.asm
         ; --- write header (14 bytes) to the output file ---
         push NULL
         push offset writeCount
-        push 14
+        push 22
         push offset fileHeaderBuffer
         push writeFileHandle
         call WriteFile
@@ -201,31 +203,36 @@ include \masm32\macros\macros.asm
 
         mov esi, offset fileHeaderBuffer ; address of the first char
         
-        next_convertion:
-            mov al, BYTE PTR [esi] ; passing the value of the current char (ASCII)
+        ;next_convertion:
+            movzx eax, BYTE PTR [fileHeaderBuffer] ; passing the value of the current char (ASCII)
+            mov fileHeight, eax
 
-            inc esi ; load the address of the next char
+            ;inc esi ; load the address of the next char
 
             ; check if the ASCII is not numerical (ASCII < 48)
-            cmp al, 48
-            jl finish_convertion
+            ;cmp al, 48
+            ;jl finish_convertion
 
             ; check if the ASCII is numerical (ASCII < 58)
-            cmp al, 58
-            jl next
+            ;cmp al, 58
+            ;jl next
 
-        finish_convertion:
-            dec esi ; address of the not numerical ASCII
+        ;finish_convertion:
+            ;dec esi ; address of the not numerical ASCII
 
             ; set the ASCII to 0 (NULL, end of string)
-            xor al, al 
-            mov BYTE PTR [esi], al
+            ;xor al, al 
+            ;mov BYTE PTR [esi], al
+    
+        ;push eax
 
         ; convert string to integer
-        push offset fileHeaderBuffer
-        call atodw
+        ;push offset fileHeaderBuffer
+        ;call atodw
         
-        mov fileHeight, eax
+        ;pop eax
+
+        ;mov fileHeight, eax
 
         printf("%d\n",fileHeight)
 
@@ -271,10 +278,10 @@ include \masm32\macros\macros.asm
         ; ===== COPY IMAGE ====
 
         ; XXXXXXXXXXXXXXXXXXXXXX NOT WORKING XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-        xor edx, edx
+        xor edi, edi
 
         image_loop:
-            push edx
+            push edi
 
             push NULL
             push offset readCount
@@ -290,12 +297,12 @@ include \masm32\macros\macros.asm
             push writeFileHandle
             call WriteFile
 
-            pop edx
+            pop edi
 
-            printf("%d\n",edx)
+            printf("%d\n",edi)
 
-            inc edx
-            cmp edx, fileHeight
+            inc edi
+            cmp edi, fileHeight
             jl image_loop
 
             ; XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
