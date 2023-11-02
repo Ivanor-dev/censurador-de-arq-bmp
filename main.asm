@@ -111,6 +111,50 @@ include \masm32\macros\macros.asm
         pop ebp
         ret 4
 
+        censure:
+            push ebp
+            mov ebp, esp
+            sub esp, 8
+            
+
+            mov esi, [ebp + 8] ; passa a posição dos bytes da linha da imagem
+            mov eax, [ebp + 12] ; coordena X inicial
+            mov ebx, [ebp + 16] ; largura da censura
+
+            sub
+
+            compare:
+                mov cl, [esi]
+                inc esi
+
+                cmp cl, eax
+                jl incremet
+                jge start_censure
+
+            incremet: 
+                inc esi
+                jmp compare
+
+            start_censure:
+                dec esi
+                xor cl, cl
+                mov [esi], cl
+
+            write_censure:
+                push NULL
+                push offset writeCount
+                push 1
+                push [esi]
+                push writeFileHandle
+                call WriteFile
+                cmp 
+                jmp incremet
+
+
+            mov esp, ebp
+            pop ebp
+            ret 4
+
     start:
 
         ; ===== USER INPUT =====
