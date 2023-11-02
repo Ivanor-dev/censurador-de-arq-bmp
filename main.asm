@@ -25,19 +25,19 @@ include \masm32\macros\macros.asm
     outputFileNameLength dd 0
 
     pointXCensurerMenssage db "Point X to censure (natural): ", 0H
-    pointXCensurer db 3 dup(0)
+    pointXCensurer db 6 dup(0)
     pointX dd 0
 
     pointYCensurerMenssage db "Point Y to censure (natural): ", 0H
-    pointYCensurer db 3 dup(0)
+    pointYCensurer db 6 dup(0)
     pointY dd 0
 
     widthCensurerMenssage db "WIDTH of black square (natural): ", 0H
-    widthCensurer db 3 dup(0)
+    widthCensurer db 6 dup(0)
     widthSquare dd 0
 
     heightCensurerMenssage db "HEIGHT of black square (natural): ", 0H
-    heightCensurer db 3 dup(0)
+    heightCensurer db 6 dup(0)
     heightSquare dd 0
 
     outputHandle dd 0
@@ -46,14 +46,20 @@ include \masm32\macros\macros.asm
     readFileHandle dd 0
     writeFileHandle dd 0
 
+    fileWidth dd 0
     fileHeight dd 0
 
     fileHeaderBuffer db 32 dup(0)
     fileImageBuffer db 6480 dup(0)
+    fileNewImageBuffer db 6480 dup(0)
+
+    nullCaracter db 1 dup(0)
 
     readCount dd 0
     writeCount dd 0
     consoleCount dd 0
+
+     blackColor db 0  ; Cor preta em RGB
 
 
 
@@ -83,7 +89,7 @@ include \masm32\macros\macros.asm
         push ebp
         mov ebp, esp
         sub esp, 8
-
+        mov edx, 3
         mov esi, [ebp + 8] ; passa o primeiro parametro para esi
 
         next_position:
@@ -104,6 +110,7 @@ include \masm32\macros\macros.asm
         push [ebp + 8]
         call atodw ; chamada para função de tradução
         mov esi, [ebp + 12] ; passagem do parametro 2 para esi
+        mul edx
 
         mov DWORD PTR [esi], eax ; atribuição de eax para o parametro 2
 
@@ -111,49 +118,39 @@ include \masm32\macros\macros.asm
         pop ebp
         ret 4
 
+
         censure:
             push ebp
             mov ebp, esp
-            sub esp, 8
+            sub esp, 12  ; Espaço para os parâmetros
+
+            ; Argumentos:
+            mov edx, 3
+            mov esi, [ebp + 8]     ; Endereço do array de bytes
+            mov eax, [ebp + 12]    ; Coordenada X inicial
+            mul edx
+            mov ebx, eax
+            mov eax, [ebp + 16]    ; Largura da censura
+            mul edx
+
+            ; Preencha os pixels com a cor preta
+            xor ecx, ecx ; Use ECX para contar a largura
             
 
-            mov esi, [ebp + 8] ; passa a posição dos bytes da linha da imagem
-            mov eax, [ebp + 12] ; coordena X inicial
-            mov ebx, [ebp + 16] ; largura da censura
+            fillPixels:
+                mov BYTE PTR [esi + ebx], 0  ; Preencha os bytes da imagem com a cor preta
+                inc esi  ; Avance para o próximo pixel
+                inc ecx
+                cmp ecx, eax
+                jl fillPixels
 
-            sub
+            
 
-            compare:
-                mov cl, [esi]
-                inc esi
-
-                cmp cl, eax
-                jl incremet
-                jge start_censure
-
-            incremet: 
-                inc esi
-                jmp compare
-
-            start_censure:
-                dec esi
-                xor cl, cl
-                mov [esi], cl
-
-            write_censure:
-                push NULL
-                push offset writeCount
-                push 1
-                push [esi]
-                push writeFileHandle
-                call WriteFile
-                cmp 
-                jmp incremet
-
-
-            mov esp, ebp
+            ; Libere a pilha e retorne
+            add esp, ebp
             pop ebp
             ret 4
+
 
     start:
 
@@ -260,6 +257,7 @@ include \masm32\macros\macros.asm
         push offset pointYCensurer
         call dbtodd
 
+
         ; --- width ---
         
         ; write width message
@@ -337,7 +335,7 @@ include \masm32\macros\macros.asm
         ; --- read header (14 bytes) from input file ---
         push NULL
         push offset readCount
-        push 22
+        push 18
         push offset fileHeaderBuffer
         push readFileHandle
         call ReadFile
@@ -345,12 +343,32 @@ include \masm32\macros\macros.asm
         ; --- write header (14 bytes) to the output file ---
         push NULL
         push offset writeCount
-        push 22
+        push 18
         push offset fileHeaderBuffer
         push writeFileHandle
         call WriteFile
         
+        ; ===== COPY WIDTH (4 bytes) =====
 
+        ; --- read width (4 bytes) from input file ---
+        push NULL
+        push offset readCount
+        push 4
+        push offset fileHeaderBuffer
+        push readFileHandle
+        call ReadFile
+
+        ; --- write width (4 bytes) to the output file ---
+        push NULL
+        push offset writeCount
+        push 4
+        push offset fileHeaderBuffer
+        push writeFileHandle
+        call WriteFile
+
+        push offset fileHeaderBuffer
+        call atodw
+        mov fileWidth, eax
 
         ; ===== COPY HEIGHT (4 bytes) =====
 
@@ -380,23 +398,6 @@ include \masm32\macros\macros.asm
 
 
 
-        ; ===== COPY WIDTH (4 bytes) =====
-
-        ; --- read width (4 bytes) from input file ---
-        push NULL
-        push offset readCount
-        push 4
-        push offset fileHeaderBuffer
-        push readFileHandle
-        call ReadFile
-
-        ; --- write width (4 bytes) to the output file ---
-        push NULL
-        push offset writeCount
-        push 4
-        push offset fileHeaderBuffer
-        push writeFileHandle
-        call WriteFile
 
 
         ; ===== COPY REMAINING HEADER DATA (32 bytes) =====
@@ -430,7 +431,13 @@ include \masm32\macros\macros.asm
         ;   while (lineIndex < fileHeight)
 
         xor edi, edi
+        xor ecx, ecx
+            mov eax, pointX
+            add eax, pointY
 
+            mov ebx, eax
+            mov eax, widthSquare
+            
         image_loop:
             push edi
 
@@ -442,7 +449,40 @@ include \masm32\macros\macros.asm
             push readFileHandle
             call ReadFile
 
-            ; --- write "image line" to the output file ---
+
+            ;mov esi, offset fileImageBuffer
+            ;xor ecx, ecx
+            ;loop_censure:
+                ;mov BYTE PTR [esi + ebx], 0
+                ;inc esi
+                ;inc ecx
+                ;cmp ecx, eax
+                ;jmp loop_censure
+
+            mov edx, 3
+            mov esi, offset fileImageBuffer     ; Endereço do array de bytes
+            mov eax, pointX   ; Coordenada X inicial
+            mul edx
+            mov ebx, eax
+            mov eax, widthSquare    ; Largura da censura
+            mul edx
+
+            ; Preencha os pixels com a cor preta
+            xor ecx, ecx ; Use ECX para contar a largura
+            
+
+            fillPixels3:
+                mov BYTE PTR [esi + ebx], 0  ; Preencha os bytes da imagem com a cor preta
+            
+                inc esi  ; Avance para o próximo pixel
+                inc ecx
+                cmp ecx, eax
+                jl fillPixels3
+
+            
+
+            
+
             push NULL
             push offset writeCount
             push 6480 ; image width = 2160 pixels * 3 bytes
@@ -455,6 +495,19 @@ include \masm32\macros\macros.asm
             inc edi
             cmp edi, fileHeight ; verify if image was fully copied
             jl image_loop
+
+
+        
+
+        
+            ;push offset fileImageBuffer
+            ;push pointX
+            ;push widthSquare
+            ;call censure2
+
+            ;call censure
+            ;jmp image_loop
+
 
         finish:
             push 0
