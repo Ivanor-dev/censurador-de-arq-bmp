@@ -51,7 +51,6 @@ include \masm32\macros\macros.asm
 
     fileHeaderBuffer db 32 dup(0)
     fileImageBuffer db 6480 dup(0)
-    fileNewImageBuffer db 6480 dup(0)
 
     nullCaracter db 1 dup(0)
 
@@ -89,7 +88,7 @@ include \masm32\macros\macros.asm
         push ebp
         mov ebp, esp
         sub esp, 8
-        mov edx, 3
+
         mov esi, [ebp + 8] ; passa o primeiro parametro para esi
 
         next_position:
@@ -110,7 +109,7 @@ include \masm32\macros\macros.asm
         push [ebp + 8]
         call atodw ; chamada para função de tradução
         mov esi, [ebp + 12] ; passagem do parametro 2 para esi
-        mul edx
+    
 
         mov DWORD PTR [esi], eax ; atribuição de eax para o parametro 2
 
@@ -119,37 +118,29 @@ include \masm32\macros\macros.asm
         ret 4
 
 
-        censure:
+        censure2:
             push ebp
             mov ebp, esp
             sub esp, 12  ; Espaço para os parâmetros
 
             ; Argumentos:
-            mov edx, 3
             mov esi, [ebp + 8]     ; Endereço do array de bytes
             mov eax, [ebp + 12]    ; Coordenada X inicial
-            mul edx
-            mov ebx, eax
-            mov eax, [ebp + 16]    ; Largura da censura
-            mul edx
+            mov ebx, [ebp + 16]    ; Largura da censura
 
             ; Preencha os pixels com a cor preta
-            xor ecx, ecx ; Use ECX para contar a largura
+            mov ecx, ebx  ; Use ECX para contar a largura
             
 
             fillPixels:
-                mov BYTE PTR [esi + ebx], 0  ; Preencha os bytes da imagem com a cor preta
-                inc esi  ; Avance para o próximo pixel
-                inc ecx
-                cmp ecx, eax
-                jl fillPixels
-
-            
+                mov [esi + eax], edx  ; Preencha os bytes da imagem com a cor preta
+                inc eax  ; Avance para o próximo pixel
+                loop fillPixels
 
             ; Libere a pilha e retorne
-            add esp, ebp
+            add esp, 12
             pop ebp
-            ret 4
+            ret
 
 
     start:
@@ -431,12 +422,8 @@ include \masm32\macros\macros.asm
         ;   while (lineIndex < fileHeight)
 
         xor edi, edi
-        xor ecx, ecx
-            mov eax, pointX
-            add eax, pointY
-
-            mov ebx, eax
-            mov eax, widthSquare
+        xor ebx, ebx
+        
             
         image_loop:
             push edi
@@ -444,48 +431,71 @@ include \masm32\macros\macros.asm
             ; --- read "image line" from input file ---
             push NULL
             push offset readCount
-            push 6480 ; image width = 2160 pixels * 3 bytes
+            push 2700 ; image width = 900 pixels * 3 bytes
             push offset fileImageBuffer
             push readFileHandle
             call ReadFile
 
+        
+        mov esi, offset fileImageBuffer
 
-            ;mov esi, offset fileImageBuffer
-            ;xor ecx, ecx
-            ;loop_censure:
-                ;mov BYTE PTR [esi + ebx], 0
-                ;inc esi
-                ;inc ecx
-                ;cmp ecx, eax
-                ;jmp loop_censure
+            xor ecx, ecx
+            xor edx, edx
+            loop_censure:
+        ; Verifique se estamos dentro da área a ser censurada
 
-            mov edx, 3
-            mov esi, offset fileImageBuffer     ; Endereço do array de bytes
-            mov eax, pointX   ; Coordenada X inicial
-            mul edx
-            mov ebx, eax
-            mov eax, widthSquare    ; Largura da censura
-            mul edx
+                cmp ecx, pointY
+                jle not_censorY ; Se não estiver, vá para a próxima posição
 
-            ; Preencha os pixels com a cor preta
-            xor ecx, ecx ; Use ECX para contar a largura
-            
+                ;add eax, pointX
+                ;add widthSquare, eax
+                cmp edx, pointX
+                jle not_censorX ; Se não estiver, vá para a próxima posição
 
-            fillPixels3:
-                mov BYTE PTR [esi + ebx], 0  ; Preencha os bytes da imagem com a cor preta
-            
-                inc esi  ; Avance para o próximo pixel
-                inc ecx
-                cmp ecx, eax
-                jl fillPixels3
+                add eax, pointX
+                add widthSquare, eax
 
-            
+                cmp edx, widthSquare
+                jle not_censorX
 
-            
+                cmp ecx, heightSquare
+                jle not_censorY
+                
+
+        ; Se estiver dentro da área, aplique a censura
+            censurator:
+                mov BYTE PTR [esi], 0
+                mov BYTE PTR [esi + 1], 0
+                mov BYTE PTR [esi + 2], 0
+                
+
+
+                not_censorY:
+                    inc esi
+                    inc esi
+                    inc esi
+                    inc ecx
+
+        ; Verifique se chegamos ao final da linha
+                cmp ecx, 900
+                jl loop_censure
+
+                 not_censorX:
+                    inc esi
+                    inc esi
+                    inc esi
+                    inc edx
+                
+                cmp edx, 506
+                jl loop_censure 
+
+               
+
+
 
             push NULL
             push offset writeCount
-            push 6480 ; image width = 2160 pixels * 3 bytes
+            push 2700 ; image width = 900 pixels * 3 bytes
             push offset fileImageBuffer
             push writeFileHandle
             call WriteFile
