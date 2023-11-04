@@ -52,13 +52,10 @@ include \masm32\macros\macros.asm
     fileHeaderBuffer db 32 dup(0)
     fileImageBuffer db 6480 dup(0)
 
-    nullCaracter db 1 dup(0)
-
     readCount dd 0
     writeCount dd 0
     consoleCount dd 0
 
-     blackColor db 0  ; Cor preta em RGB
 
 
 
@@ -118,7 +115,7 @@ include \masm32\macros\macros.asm
         ret 4
 
 
-        censure2:
+        censure:
             push ebp
             mov ebp, esp
             sub esp, 12  ; Espaço para os parâmetros
@@ -129,18 +126,22 @@ include \masm32\macros\macros.asm
             mov ebx, [ebp + 16]    ; Largura da censura
 
             ; Preencha os pixels com a cor preta
-            mov ecx, ebx  ; Use ECX para contar a largura
+            xor edx, edx  ; Use ECX para contar a largura
             
 
             fillPixels:
-                mov [esi + eax], edx  ; Preencha os bytes da imagem com a cor preta
-                inc eax  ; Avance para o próximo pixel
+                cmp eax, esi
+                jge finish_fillPixels
+                mov BYTE PTR [esi], dl  ; Preencha os bytes da imagem com a cor preta
+                mov BYTE PTR [esi + 1], dl  
+                mov BYTE PTR [esi + 2], dl ; Avance para o próximo pixel
+                add eax, 3
                 loop fillPixels
 
             ; Libere a pilha e retorne
-            add esp, 12
-            pop ebp
-            ret
+            finish_fillPixels:
+                pop ebp
+                ret
 
 
     start:
@@ -423,10 +424,11 @@ include \masm32\macros\macros.asm
 
         xor edi, edi
         xor ebx, ebx
+        xor ecx, ecx
         
             
         image_loop:
-            push edi
+            
 
             ; --- read "image line" from input file ---
             push NULL
@@ -436,63 +438,33 @@ include \masm32\macros\macros.asm
             push readFileHandle
             call ReadFile
 
-        
-        mov esi, offset fileImageBuffer
-
-            xor ecx, ecx
-            xor edx, edx
-            loop_censure:
+            cmp readCount, 0
+            je sair
+            
         ; Verifique se estamos dentro da área a ser censurada
+        ;xor ecx, ecx
 
-                cmp ecx, pointY
-                jle not_censorY ; Se não estiver, vá para a próxima posição
+                cmp edi, pointY
+                jl not_censorY ; Se não estiver, vá para a próxima posição
 
-                ;add eax, pointX
-                ;add widthSquare, eax
-                cmp edx, pointX
-                jle not_censorX ; Se não estiver, vá para a próxima posição
+                add eax, pointY
+                add heightSquare, eax
 
-                add eax, pointX
-                add widthSquare, eax
 
-                cmp edx, widthSquare
-                jle not_censorX
-
-                cmp ecx, heightSquare
-                jle not_censorY
+                cmp edi, heightSquare
+                jg not_censorY
                 
 
         ; Se estiver dentro da área, aplique a censura
-            censurator:
-                mov BYTE PTR [esi], 0
-                mov BYTE PTR [esi + 1], 0
-                mov BYTE PTR [esi + 2], 0
+                push widthSquare
+                push pointX
+                push offset fileImageBuffer
+                call censure
                 
-
-
-                not_censorY:
-                    inc esi
-                    inc esi
-                    inc esi
-                    inc ecx
-
         ; Verifique se chegamos ao final da linha
-                cmp ecx, 900
-                jl loop_censure
-
-                 not_censorX:
-                    inc esi
-                    inc esi
-                    inc esi
-                    inc edx
-                
-                cmp edx, 506
-                jl loop_censure 
-
-               
 
 
-
+        not_censorY:
             push NULL
             push offset writeCount
             push 2700 ; image width = 900 pixels * 3 bytes
@@ -500,13 +472,13 @@ include \masm32\macros\macros.asm
             push writeFileHandle
             call WriteFile
 
-            pop edi
 
             inc edi
-            cmp edi, fileHeight ; verify if image was fully copied
-            jl image_loop
+            
+            jmp image_loop
 
-
+        sair:
+            ret
         
 
         
