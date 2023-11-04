@@ -4,63 +4,68 @@
 option casemap: none
 
 include \masm32\include\windows.inc
-include \masm32\include\kernel32.inc
 include \masm32\include\masm32.inc
+include \masm32\include\gdi32.inc
+include \masm32\include\user32.inc
+include \masm32\include\kernel32.inc
 include \masm32\include\msvcrt.inc
-
-includelib \masm32\lib\kernel32.lib
-includelib \masm32\lib\msvcrt.lib
-includelib \masm32\lib\masm32.lib
-
 include \masm32\macros\macros.asm
 
+includelib \masm32\lib\msvcrt.lib
+includelib \masm32\lib\masm32.lib
+includelib \masm32\lib\gdi32.lib
+includelib \masm32\lib\user32.lib
+includelib \masm32\lib\kernel32.lib
 
 .data
     fileNameMessage db "Input file name (.bmp): ", 0H
-    fileName db 50 dup(0) ; 100 bytes = 800 bits
+    fileName db 256 dup(0) ; 100 bytes = 800 bits
     fileNameLength dd 0
 
     outputFileNameMessage db "Output file name (.bmp): ", 0H
-    outputFileName db 50 dup(0) ; 100 bytes = 800 bits
+    outputFileName db 256 dup(0) ; 100 bytes = 800 bits
     outputFileNameLength dd 0
 
     pointXCensurerMenssage db "Point X to censure (natural): ", 0H
-    pointXCensurer db 6 dup(0)
-    pointX dd 0
+    pointXCensurer db 32 dup(0)
+    pointX DWORD ?
 
     pointYCensurerMenssage db "Point Y to censure (natural): ", 0H
-    pointYCensurer db 6 dup(0)
-    pointY dd 0
+    pointYCensurer db 32 dup(0)
+    pointY DWORD ?
 
     widthCensurerMenssage db "WIDTH of black square (natural): ", 0H
-    widthCensurer db 6 dup(0)
-    widthSquare dd 0
+    widthCensurer db 32 dup(0)
+    widthSquare DWORD ?
 
     heightCensurerMenssage db "HEIGHT of black square (natural): ", 0H
-    heightCensurer db 6 dup(0)
-    heightSquare dd 0
+    heightCensurer db 32 dup(0)
+    heightSquare DWORD ?
 
-    outputHandle dd 0
-    inputHandle dd 0
+    outputHandle HANDLE ?
+    inputHandle HANDLE ?
 
-    readFileHandle dd 0
-    writeFileHandle dd 0
+    readFileHandle HANDLE ?
+    writeFileHandle HANDLE ?
 
-    fileWidth dd 0
-    fileHeight dd 0
+    fileWidth DWORD ?
+    fileHeight DWORD ?
 
     fileHeaderBuffer db 32 dup(0)
     fileImageBuffer db 6480 dup(0)
 
-    readCount dd 0
-    writeCount dd 0
-    consoleCount dd 0
+    readCount DWORD ?
+    writeCount DWORD ?
+    consoleCount DWORD ?
+    lineCount dd 0
+    imageWidth dd 0
 
-
+    error db "ocorreu um erro.", 0H
 
 
 .code
-    remove_CR_LF:
+   
+   remove_CR_LF:
         push ebp
         mov ebp, esp
 
@@ -81,68 +86,38 @@ include \masm32\macros\macros.asm
         pop ebp
         ret 4
 
-    dbtodd:
-        push ebp
-        mov ebp, esp
-        sub esp, 8
-
-        mov esi, [ebp + 8] ; passa o primeiro parametro para esi
-
-        next_position:
-            mov al, [esi] ; passa o caraciter da posição para al
-            inc esi ; incrementa esi para acessar a proxima posição
-
-            cmp al, 48 ; compara o valor dos caracteres
-            jl finish_convertion ; sendo menor acaba a converção
-
-            cmp al, 58 ; compara o valor dos caracteres
-            jl next_position ; vai par a proxima posição
-
-        finish_convertion:
-            dec esi ; decrece o esi
-            xor al, al ; zera al
-            mov [esi], al ; põe o caracter nulo na posição de esi
-        
-        push [ebp + 8]
-        call atodw ; chamada para função de tradução
-        mov esi, [ebp + 12] ; passagem do parametro 2 para esi
-    
-
-        mov DWORD PTR [esi], eax ; atribuição de eax para o parametro 2
-
-        mov esp, ebp
-        pop ebp
-        ret 4
-
 
         censure:
             push ebp
             mov ebp, esp
-            sub esp, 12  ; Espaço para os parâmetros
-
-            ; Argumentos:
-            mov esi, [ebp + 8]     ; Endereço do array de bytes
-            mov eax, [ebp + 12]    ; Coordenada X inicial
-            mov ebx, [ebp + 16]    ; Largura da censura
-
-            ; Preencha os pixels com a cor preta
-            xor edx, edx  ; Use ECX para contar a largura
             
 
+            ; Argumentos:
+            mov edi, [ebp + 8]    ; Largura da censura
+            mov eax, [ebp + 12]    ; Coordenada X inicial
+            imul eax, 3
+            mov ebx, [ebp + 16]     ; Endereço do array de bytes
+            imul ebx, 3
+
+            ; Preencha os pixels com a cor preta
+
+            add ebx, eax            
+
             fillPixels:
-                cmp eax, esi
-                jge finish_fillPixels
-                mov BYTE PTR [esi], dl  ; Preencha os bytes da imagem com a cor preta
-                mov BYTE PTR [esi + 1], dl  
-                mov BYTE PTR [esi + 2], dl ; Avance para o próximo pixel
+                cmp eax, ebx 
+                jg finish_fillPixels
+
+                mov BYTE PTR [edi + eax], 0  ; Preencha os bytes da imagem com a cor preta
+                mov BYTE PTR [edi + eax + 1], 0  
+                mov BYTE PTR [edi + eax + 2], 0 ; Avance para o próximo pixel
                 add eax, 3
-                loop fillPixels
+                jmp fillPixels
 
             ; Libere a pilha e retorne
             finish_fillPixels:
+                mov esp, ebp
                 pop ebp
-                ret
-
+                ret 0
 
     start:
 
@@ -156,6 +131,14 @@ include \masm32\macros\macros.asm
         push STD_OUTPUT_HANDLE
         call GetStdHandle
         mov outputHandle, eax
+
+        push STD_INPUT_HANDLE
+        call GetStdHandle
+        mov readFileHandle, eax
+
+        push STD_OUTPUT_HANDLE
+        call GetStdHandle
+        mov writeFileHandle, eax
 
         ; ---- input file ----
 
@@ -205,94 +188,8 @@ include \masm32\macros\macros.asm
         push offset outputFileName
         call remove_CR_LF
 
-        ; --- position X ---
 
-        ; write position X message
-        push NULL
-        push offset consoleCount
-        push sizeof pointXCensurerMenssage
-        push offset pointXCensurerMenssage
-        push outputHandle
-        call WriteConsole
-
-        ; read position X
-        push NULL
-        push offset consoleCount
-        push sizeof pointXCensurer
-        push offset pointXCensurer
-        push inputHandle
-        call ReadConsole
-
-        push offset pointX
-        push offset pointXCensurer
-        call dbtodd
-
-        ; --- position Y ---
-        
-        ; write position Y message
-        push NULL
-        push offset consoleCount
-        push sizeof pointYCensurerMenssage
-        push offset pointYCensurerMenssage
-        push outputHandle
-        call WriteConsole
-
-        ; read position Y
-        push NULL
-        push offset consoleCount
-        push sizeof pointYCensurer
-        push offset pointYCensurer
-        push inputHandle
-        call ReadConsole
-
-        push offset pointY
-        push offset pointYCensurer
-        call dbtodd
-
-
-        ; --- width ---
-        
-        ; write width message
-        push NULL
-        push offset consoleCount
-        push sizeof widthCensurerMenssage
-        push offset widthCensurerMenssage
-        push outputHandle
-        call WriteConsole
-
-        ; read width
-        push NULL
-        push offset consoleCount
-        push sizeof widthCensurer
-        push offset widthCensurer
-        push inputHandle
-        call ReadConsole
-
-        push offset widthSquare
-        push offset widthCensurer
-        call dbtodd
-
-        ; --- height ---
-        
-        ; write width message
-        push NULL
-        push offset consoleCount
-        push sizeof heightCensurerMenssage
-        push offset heightCensurerMenssage
-        push outputHandle
-        call WriteConsole
-
-        ; read width
-        push NULL
-        push offset consoleCount
-        push sizeof heightCensurer
-        push offset heightCensurer
-        push inputHandle
-        call ReadConsole
-
-        push offset heightSquare
-        push offset heightCensurer
-        call dbtodd
+        ;printf("valor altura %d", heightSquare)
 
         ; ===== FILES SETUP =====
 
@@ -307,6 +204,8 @@ include \masm32\macros\macros.asm
         call CreateFile
 
         mov readFileHandle, eax
+        cmp readFileHandle, INVALID_HANDLE_VALUE
+        je error_occurred
 
         ; -- create output file ---
         push NULL
@@ -362,34 +261,6 @@ include \masm32\macros\macros.asm
         call atodw
         mov fileWidth, eax
 
-        ; ===== COPY HEIGHT (4 bytes) =====
-
-        ; --- read height (4 bytes) from input file ---
-        push NULL
-        push offset readCount
-        push 4
-        push offset fileHeaderBuffer
-        push readFileHandle
-        call ReadFile
-
-        ; --- write height (4 bytes) to the output file ---
-        push NULL
-        push offset writeCount
-        push 4
-        push offset fileHeaderBuffer
-        push writeFileHandle
-        call WriteFile
-
-        ; --- save the file height in memory ---
-        
-        ; convert ASCII to number
-        push offset fileHeaderBuffer
-        call atodw
-        mov fileHeight, eax
-
-
-
-
 
 
         ; ===== COPY REMAINING HEADER DATA (32 bytes) =====
@@ -410,7 +281,118 @@ include \masm32\macros\macros.asm
         push writeFileHandle
         call WriteFile
 
+                ; --- position X ---
 
+        ; write position X message
+        push NULL
+        push offset consoleCount
+        push sizeof pointXCensurerMenssage
+        push offset pointXCensurerMenssage
+        push outputHandle
+        call WriteConsole
+
+        ; read position X
+        push NULL
+        push offset consoleCount
+        push sizeof pointXCensurer
+        push offset pointXCensurer
+        push inputHandle
+        call ReadConsole
+
+        
+        push offset pointXCensurer
+        call remove_CR_LF
+
+        push offset pointXCensurer
+        call atodw
+
+        mov pointX, eax
+
+        ; --- position Y ---
+        
+        ; write position Y message
+        push NULL
+        push offset consoleCount
+        push sizeof pointYCensurerMenssage
+        push offset pointYCensurerMenssage
+        push outputHandle
+        call WriteConsole
+
+        ; read position Y
+        push NULL
+        push offset consoleCount
+        push sizeof pointYCensurer
+        push offset pointYCensurer
+        push inputHandle
+        call ReadConsole
+
+        
+        push offset pointYCensurer
+        call remove_CR_LF
+
+        push offset pointYCensurer
+        call atodw
+
+        mov pointY, eax
+        ; --- width ---
+        
+        ; write width message
+        push NULL
+        push offset consoleCount
+        push sizeof widthCensurerMenssage
+        push offset widthCensurerMenssage
+        push outputHandle
+        call WriteConsole
+
+        ; read width
+        push NULL
+        push offset consoleCount
+        push sizeof widthCensurer
+        push offset widthCensurer
+        push inputHandle
+        call ReadConsole
+
+        
+        push offset widthCensurer
+        call remove_CR_LF
+
+        push offset widthCensurer
+        call atodw
+
+        mov widthSquare, eax
+
+        ; --- height ---
+        
+        ; write width message
+        push NULL
+        push offset consoleCount
+        push sizeof heightCensurerMenssage
+        push offset heightCensurerMenssage
+        push outputHandle
+        call WriteConsole
+
+        ; read width
+        push NULL
+        push offset consoleCount
+        push sizeof heightCensurer
+        push offset heightCensurer
+        push inputHandle
+        call ReadConsole
+
+        
+        push offset heightCensurer
+        call remove_CR_LF
+
+        push offset heightCensurer
+        call atodw
+
+        mov heightSquare, eax
+
+
+        mov eax, fileWidth
+    
+        
+        mov imageWidth, eax
 
         ; ===== COPY IMAGE =====
 
@@ -422,37 +404,34 @@ include \masm32\macros\macros.asm
         ;       lineIndex++
         ;   while (lineIndex < fileHeight)
 
-        xor edi, edi
-        xor ebx, ebx
-        xor ecx, ecx
-        
-            
-        image_loop:
-            
+         image_loop:
 
             ; --- read "image line" from input file ---
             push NULL
             push offset readCount
-            push 2700 ; image width = 900 pixels * 3 bytes
+            push 2700
             push offset fileImageBuffer
             push readFileHandle
             call ReadFile
 
             cmp readCount, 0
-            je sair
+            je image_exit
             
+            mov esi, lineCount
         ; Verifique se estamos dentro da área a ser censurada
         ;xor ecx, ecx
 
-                cmp edi, pointY
+                cmp esi, pointY
                 jl not_censorY ; Se não estiver, vá para a próxima posição
 
-                add eax, pointY
-                add heightSquare, eax
+                mov eax, pointY
+                add eax, heightSquare
 
 
-                cmp edi, heightSquare
-                jg not_censorY
+                cmp esi, eax
+                jge not_censorY
+
+
                 
 
         ; Se estiver dentro da área, aplique a censura
@@ -467,32 +446,40 @@ include \masm32\macros\macros.asm
         not_censorY:
             push NULL
             push offset writeCount
-            push 2700 ; image width = 900 pixels * 3 bytes
+            push 2700; image width = 900 pixels * 3 bytes
             push offset fileImageBuffer
             push writeFileHandle
             call WriteFile
 
-
-            inc edi
+            inc lineCount
             
             jmp image_loop
 
-        sair:
-            ret
+
+        image_exit:
+        push inputHandle
+        call CloseHandle
+
+        push outputHandle
+        call CloseHandle
         
-
-        
-            ;push offset fileImageBuffer
-            ;push pointX
-            ;push widthSquare
-            ;call censure2
-
-            ;call censure
-            ;jmp image_loop
-
-
         finish:
             push 0
             call ExitProcess
+            
+
+
+        error_occurred: 
+        push STD_OUTPUT_HANDLE
+        call GetStdHandle
+        mov ecx, eax
+        push NULL
+        push offset consoleCount
+        push sizeof error
+        push offset error
+        push ecx
+        call WriteConsole
+        push -1
+        call ExitProcess
 
     end start
