@@ -1,3 +1,4 @@
+main.asm
 .686
 
 .model flat, stdcall
@@ -18,27 +19,27 @@ includelib \masm32\lib\user32.lib
 includelib \masm32\lib\kernel32.lib
 
 .data
-    fileNameMessage db "Input file name (.bmp): ", 0H
+    fileNameMessage db "Nome do arquivo de entrada (.bmp): ", 0H
     fileName db 256 dup(0) ; 100 bytes = 800 bits
     fileNameLength dd 0
 
-    outputFileNameMessage db "Output file name (.bmp): ", 0H
+    outputFileNameMessage db "Nome do arquivo de saída (.bmp): ", 0H
     outputFileName db 256 dup(0) ; 100 bytes = 800 bits
     outputFileNameLength dd 0
 
-    pointXCensurerMenssage db "Point X to censure (natural): ", 0H
+    pointXCensurerMenssage db "Coordenada X da censura (inteiro): ", 0H
     pointXCensurer db 32 dup(0)
     pointX DWORD ?
 
-    pointYCensurerMenssage db "Point Y to censure (natural): ", 0H
+    pointYCensurerMenssage db "Coordenada X da censura (inteiro): ", 0H
     pointYCensurer db 32 dup(0)
     pointY DWORD ?
 
-    widthCensurerMenssage db "WIDTH of black square (natural): ", 0H
+    widthCensurerMenssage db "LARGURA da censura (inteiro): ", 0H
     widthCensurer db 32 dup(0)
     widthSquare DWORD ?
 
-    heightCensurerMenssage db "HEIGHT of black square (natural): ", 0H
+    heightCensurerMenssage db "ALTURA da censura (inteiro): ", 0H
     heightCensurer db 32 dup(0)
     heightSquare DWORD ?
 
@@ -121,9 +122,9 @@ includelib \masm32\lib\kernel32.lib
 
     start:
 
-        ; ===== USER INPUT =====
+        ; ===== ENTRADA E SAIDA =====
 
-        ; -- get input/output handle
+        ; -- input/output handle
         push STD_INPUT_HANDLE
         call GetStdHandle
         mov inputHandle, eax
@@ -140,9 +141,9 @@ includelib \masm32\lib\kernel32.lib
         call GetStdHandle
         mov writeFileHandle, eax
 
-        ; ---- input file ----
+        ; ---- arquivo de entrada ----
 
-        ; write input message name
+        ; escrever prompt para pegar o nome do arquivo de entrada
         push NULL
         push offset consoleCount
         push sizeof fileNameMessage
@@ -150,7 +151,7 @@ includelib \masm32\lib\kernel32.lib
         push outputHandle
         call WriteConsole
 
-        ; read input file name
+        ; ler nome do arquivo de entrada
         push NULL
         push offset consoleCount
         push sizeof fileName
@@ -158,18 +159,17 @@ includelib \masm32\lib\kernel32.lib
         push inputHandle
         call ReadConsole
 
-
         push offset fileName
         call remove_CR_LF        
 
-        ; get file name string length
+        ; pegar tamanho da string do nome do arquivo
         push offset fileName
         call StrLen
         mov fileNameLength, eax
 
-        ; ---- output file ----
+        ; ---- arquivo de saída ----
 
-        ; write output file name message
+        ; escrever prompt para pegar o nome do arquivo de saída
         push NULL
         push offset consoleCount
         push sizeof outputFileNameMessage
@@ -177,7 +177,7 @@ includelib \masm32\lib\kernel32.lib
         push outputHandle
         call WriteConsole
 
-        ; read output file name
+        ; ler nome do arquivo de saída
         push NULL
         push offset consoleCount
         push sizeof outputFileName
@@ -189,11 +189,9 @@ includelib \masm32\lib\kernel32.lib
         call remove_CR_LF
 
 
-        ;printf("valor altura %d", heightSquare)
+        ; ===== SETUP DE ARQUIVOS =====
 
-        ; ===== FILES SETUP =====
-
-        ; --- open input file ---
+        ; --- abrir arquivo de entrada ---
         push NULL
         push FILE_ATTRIBUTE_NORMAL
         push OPEN_EXISTING
@@ -207,7 +205,7 @@ includelib \masm32\lib\kernel32.lib
         cmp readFileHandle, INVALID_HANDLE_VALUE
         je error_occurred
 
-        ; -- create output file ---
+        ; -- criar arquivo de saída ---
         push NULL
         push FILE_ATTRIBUTE_NORMAL
         push CREATE_ALWAYS
@@ -221,9 +219,9 @@ includelib \masm32\lib\kernel32.lib
 
 
 
-        ; ===== COPY HEADER (14 bytes) =====
+        ; ===== COPIAR HEADER (14 bytes) =====
 
-        ; --- read header (14 bytes) from input file ---
+        ; --- ler header (14 bytes) do arquivo de entrada ---
         push NULL
         push offset readCount
         push 18
@@ -231,7 +229,7 @@ includelib \masm32\lib\kernel32.lib
         push readFileHandle
         call ReadFile
 
-        ; --- write header (14 bytes) to the output file ---
+        ; --- escrever header (14 bytes) no arquivo de saída ---
         push NULL
         push offset writeCount
         push 18
@@ -239,9 +237,10 @@ includelib \masm32\lib\kernel32.lib
         push writeFileHandle
         call WriteFile
         
-        ; ===== COPY WIDTH (4 bytes) =====
 
-        ; --- read width (4 bytes) from input file ---
+        ; ===== COPIAR LARGURA (4 bytes) =====
+
+        ; --- ler largura (4 bytes) do arquivo de entrada ---
         push NULL
         push offset readCount
         push 4
@@ -249,7 +248,7 @@ includelib \masm32\lib\kernel32.lib
         push readFileHandle
         call ReadFile
 
-        ; --- write width (4 bytes) to the output file ---
+        ; --- escrever leargura (4 bytes) no arquivo de saída ---
         push NULL
         push offset writeCount
         push 4
@@ -257,15 +256,16 @@ includelib \masm32\lib\kernel32.lib
         push writeFileHandle
         call WriteFile
 
+        ; --- converter ASCII para DWORD
         push offset fileHeaderBuffer
         call atodw
         mov fileWidth, eax
 
 
 
-        ; ===== COPY REMAINING HEADER DATA (32 bytes) =====
+        ; ===== COPIAR RESTO DOS DADOS DO HEADER (32 bytes) =====
 
-        ; --- read 32 bytes from input file ---
+        ; --- ler 32 bytes do arquivo de entrada ---
         push NULL
         push offset readCount
         push 32
@@ -273,7 +273,7 @@ includelib \masm32\lib\kernel32.lib
         push readFileHandle
         call ReadFile
 
-        ; --- write 32 bytes to the output file ---
+        ; --- escrever 32 bytes no arquivo de saída ---
         push NULL
         push offset writeCount
         push 32
@@ -281,9 +281,11 @@ includelib \masm32\lib\kernel32.lib
         push writeFileHandle
         call WriteFile
 
-                ; --- position X ---
+        ; === COORDENADAS DA CENSURA ===
 
-        ; write position X message
+        ; --- coordenada X ---
+
+        ; escrever prompt para pegar coordenada X
         push NULL
         push offset consoleCount
         push sizeof pointXCensurerMenssage
@@ -291,7 +293,7 @@ includelib \masm32\lib\kernel32.lib
         push outputHandle
         call WriteConsole
 
-        ; read position X
+        ; ler coordenada X
         push NULL
         push offset consoleCount
         push sizeof pointXCensurer
@@ -299,18 +301,19 @@ includelib \masm32\lib\kernel32.lib
         push inputHandle
         call ReadConsole
 
-        
+        ; retirar ASCII CR e LF
         push offset pointXCensurer
         call remove_CR_LF
 
+        ; converter ASCII para DWORD
         push offset pointXCensurer
         call atodw
 
         mov pointX, eax
 
-        ; --- position Y ---
+        ; --- coordendada Y ---
         
-        ; write position Y message
+        ; escrever prompt para pegar coordenada Y
         push NULL
         push offset consoleCount
         push sizeof pointYCensurerMenssage
@@ -318,7 +321,7 @@ includelib \masm32\lib\kernel32.lib
         push outputHandle
         call WriteConsole
 
-        ; read position Y
+        ; ler coordenada Y
         push NULL
         push offset consoleCount
         push sizeof pointYCensurer
@@ -326,17 +329,21 @@ includelib \masm32\lib\kernel32.lib
         push inputHandle
         call ReadConsole
 
-        
+        ; retirar ASCII CR e LF
         push offset pointYCensurer
         call remove_CR_LF
 
+        ; converter ASCII para DWORD
         push offset pointYCensurer
         call atodw
 
         mov pointY, eax
-        ; --- width ---
+
+        ; === DIMENSÕES DA CENSURA ===
+
+        ; --- largura da censura ---
         
-        ; write width message
+        ; escrever prompt para pegar largura da censura
         push NULL
         push offset consoleCount
         push sizeof widthCensurerMenssage
@@ -344,7 +351,7 @@ includelib \masm32\lib\kernel32.lib
         push outputHandle
         call WriteConsole
 
-        ; read width
+        ; ler largura da censura
         push NULL
         push offset consoleCount
         push sizeof widthCensurer
@@ -352,18 +359,20 @@ includelib \masm32\lib\kernel32.lib
         push inputHandle
         call ReadConsole
 
-        
+        ; retirar ASCII CR e LF
         push offset widthCensurer
         call remove_CR_LF
 
+        ; converter ASCII para DWORD
         push offset widthCensurer
         call atodw
 
         mov widthSquare, eax
 
-        ; --- height ---
+
+        ; --- altura da censura ---
         
-        ; write width message
+        ; escrever prompt para pegar altura da censura
         push NULL
         push offset consoleCount
         push sizeof heightCensurerMenssage
@@ -371,7 +380,7 @@ includelib \masm32\lib\kernel32.lib
         push outputHandle
         call WriteConsole
 
-        ; read width
+        ; ler largura da censura
         push NULL
         push offset consoleCount
         push sizeof heightCensurer
@@ -379,74 +388,62 @@ includelib \masm32\lib\kernel32.lib
         push inputHandle
         call ReadConsole
 
-        
+        ; retirar ASCII CR e LF
         push offset heightCensurer
         call remove_CR_LF
 
+        ; converter ASCII para DWORD
         push offset heightCensurer
         call atodw
 
         mov heightSquare, eax
 
-
         mov eax, fileWidth
-    
-        
         mov imageWidth, eax
 
-        ; ===== COPY IMAGE =====
+        ; ===== COPIAR IMAGEM =====
 
-        ; LOGIC: 
-        ;   lineIndex = 0
-        ;   do
-        ;       read line from input file
-        ;       write line to the output file
-        ;       lineIndex++
-        ;   while (lineIndex < fileHeight)
+        image_loop:
 
-         image_loop:
-
-            ; --- read "image line" from input file ---
+            ; --- ler "linha" da imagem ---
             push NULL
             push offset readCount
             push 2700
             push offset fileImageBuffer
             push readFileHandle
             call ReadFile
-
+            
+            ; verifique se ainda tem linhas para ler
             cmp readCount, 0
             je image_exit
             
+            ; --- censura ---
+
             mov esi, lineCount
-        ; Verifique se estamos dentro da área a ser censurada
-        ;xor ecx, ecx
+        
+            ; Verifique se estamos dentro da área a ser censurada
+            cmp esi, pointY
+            jl not_censorY ; Se não estiver, vá para a próxima posição
 
-                cmp esi, pointY
-                jl not_censorY ; Se não estiver, vá para a próxima posição
-
-                mov eax, pointY
-                add eax, heightSquare
-
-
-                cmp esi, eax
-                jge not_censorY
-
-
-                
-
-        ; Se estiver dentro da área, aplique a censura
-                push widthSquare
-                push pointX
-                push offset fileImageBuffer
-                call censure
-                
-        ; Verifique se chegamos ao final da linha
-
-
+            ; coordenada y do fim da censura
+            mov eax, pointY
+            add eax, heightSquare
+            
+            ; Verifique se estamos dentro da área a ser censurada
+            cmp esi, eax
+            jge not_censorY ; Se não estiver, vá para a próxima posição
+      
+            ; Se estiver dentro da área, aplique a censura
+            push widthSquare
+            push pointX
+            push offset fileImageBuffer
+            call censure
+                    
+        ; -- avançar posição na imagem
         not_censorY:
             push NULL
             push offset writeCount
-            push 2700; image width = 900 pixels * 3 bytes
+            push 2700; largura da imagem = 900 pixels * 3 bytes
             push offset fileImageBuffer
             push writeFileHandle
             call WriteFile
@@ -455,31 +452,34 @@ includelib \masm32\lib\kernel32.lib
             
             jmp image_loop
 
-
+        ; -- fecha arquivos
         image_exit:
-        push inputHandle
-        call CloseHandle
+            push inputHandle
+            call CloseHandle
 
-        push outputHandle
-        call CloseHandle
+            push outputHandle
+            call CloseHandle
         
+        ; -- finaliza programa
         finish:
             push 0
             call ExitProcess
             
 
-
+        ; -- mensagem de erro
         error_occurred: 
-        push STD_OUTPUT_HANDLE
-        call GetStdHandle
-        mov ecx, eax
-        push NULL
-        push offset consoleCount
-        push sizeof error
-        push offset error
-        push ecx
-        call WriteConsole
-        push -1
-        call ExitProcess
+            push STD_OUTPUT_HANDLE
+            call GetStdHandle
+            mov ecx, eax
+
+            push NULL
+            push offset consoleCount
+            push sizeof error
+            push offset error
+            push ecx
+            call WriteConsole
+
+            push -1
+            call ExitProcess
 
     end start
